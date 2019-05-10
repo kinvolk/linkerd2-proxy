@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::{fmt, hash};
+use std::{cmp, fmt, hash};
 
 use super::identity;
 use control::destination::{Metadata, ProtocolHint};
@@ -11,7 +11,7 @@ use tap;
 use transport::{connect, tls};
 use {Conditional, NameAddr};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Endpoint {
     pub dst_name: Option<NameAddr>,
     pub addr: SocketAddr,
@@ -63,6 +63,18 @@ impl fmt::Display for Endpoint {
         self.addr.fmt(f)
     }
 }
+
+impl cmp::PartialEq<Endpoint> for Endpoint {
+    fn eq(&self, other: &Endpoint) -> bool {
+        self.dst_name.eq(&other.dst_name)
+            && self.addr.eq(&other.addr)
+            && self.identity.eq(&other.identity)
+            && self.http_settings.eq(&other.http_settings)
+        // Ignore metadata.
+    }
+}
+
+impl cmp::Eq for Endpoint {}
 
 impl hash::Hash for Endpoint {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
