@@ -4,6 +4,7 @@ extern crate tower_discover;
 
 use std::marker::PhantomData;
 use std::time::Duration;
+use std::{cmp, hash};
 
 use futures::{Future, Poll};
 use hyper::body::Payload;
@@ -20,24 +21,24 @@ use svc;
 /// Configures a stack to resolve `T` typed targets to balance requests over
 /// `M`-typed endpoint stacks.
 #[derive(Debug)]
-pub struct Layer<A, B> {
+pub struct Layer<K, A, B> {
     decay: Duration,
     default_rtt: Duration,
-    _marker: PhantomData<fn(A) -> B>,
+    _marker: PhantomData<fn(K, A) -> B>,
 }
 
 /// Resolves `T` typed targets to balance requests over `M`-typed endpoint stacks.
 #[derive(Debug)]
-pub struct MakeSvc<M, A, B> {
+pub struct MakeSvc<M, K, A, B> {
     decay: Duration,
     default_rtt: Duration,
     inner: M,
-    _marker: PhantomData<fn(A) -> B>,
+    _marker: PhantomData<fn(K, A) -> B>,
 }
 
 // === impl Layer ===
 
-pub fn layer<A, B>(default_rtt: Duration, decay: Duration) -> Layer<A, B> {
+pub fn layer<K, A, B>(default_rtt: Duration, decay: Duration) -> Layer<K, A, B> {
     Layer {
         decay,
         default_rtt,
@@ -45,7 +46,7 @@ pub fn layer<A, B>(default_rtt: Duration, decay: Duration) -> Layer<A, B> {
     }
 }
 
-impl<A, B> Clone for Layer<A, B> {
+impl<K, A, B> Clone for Layer<K, A, B> {
     fn clone(&self) -> Self {
         Layer {
             decay: self.decay,
@@ -55,12 +56,12 @@ impl<A, B> Clone for Layer<A, B> {
     }
 }
 
-impl<M, A, B> svc::Layer<M> for Layer<A, B>
+impl<M, K, A, B> svc::Layer<M> for Layer<K, A, B>
 where
     A: Payload,
     B: Payload,
 {
-    type Service = MakeSvc<M, A, B>;
+    type Service = MakeSvc<M, K, A, B>;
 
     fn layer(&self, inner: M) -> Self::Service {
         MakeSvc {
@@ -74,7 +75,7 @@ where
 
 // === impl MakeSvc ===
 
-impl<M: Clone, A, B> Clone for MakeSvc<M, A, B> {
+impl<M: Clone, K, A, B> Clone for MakeSvc<M, K, A, B> {
     fn clone(&self) -> Self {
         MakeSvc {
             decay: self.decay,
@@ -85,20 +86,23 @@ impl<M: Clone, A, B> Clone for MakeSvc<M, A, B> {
     }
 }
 
-impl<T, M, A, B> svc::Service<T> for MakeSvc<M, A, B>
+impl<T, M, K, A, B> svc::Service<T> for MakeSvc<M, K, A, B>
 where
     M: svc::Service<T>,
-    M::Response: Discover,
+    M::Response: Discover<Key = Weighted<K>>,
     <M::Response as Discover>::Key: HasWeight,
     <M::Response as Discover>::Service:
         svc::Service<http::Request<A>, Response = http::Response<B>>,
+    K: cmp::Eq + hash::Hash,
     A: Payload,
     B: Payload,
 {
-    type Response =
-        Balance<WithWeighted<WithPeakEwma<M::Response, PendingUntilFirstData>>, PowerOfTwoChoices>;
+    type Response = Balance<
+        WithWeighted<WithPeakEwma<M::Response, PendingUntilFirstData>, K>,
+        PowerOfTwoChoices,
+    >;
     type Error = M::Error;
-    type Future = MakeSvc<M::Future, A, B>;
+    type Future = MakeSvc<M::Future, K, A, B>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         self.inner.poll_ready()
@@ -116,17 +120,17 @@ where
     }
 }
 
-impl<F, A, B> Future for MakeSvc<F, A, B>
+impl<F, K, A, B> Future for MakeSvc<F, K, A, B>
 where
     F: Future,
-    F::Item: Discover,
-    <F::Item as Discover>::Key: HasWeight,
+    F::Item: Discover<Key = Weighted<K>>,
     <F::Item as Discover>::Service: svc::Service<http::Request<A>, Response = http::Response<B>>,
+    K: cmp::Eq + hash::Hash,
     A: Payload,
     B: Payload,
 {
     type Item =
-        Balance<WithWeighted<WithPeakEwma<F::Item, PendingUntilFirstData>>, PowerOfTwoChoices>;
+        Balance<WithWeighted<WithPeakEwma<F::Item, PendingUntilFirstData>, K>, PowerOfTwoChoices>;
     type Error = F::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {

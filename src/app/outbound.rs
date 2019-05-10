@@ -100,7 +100,9 @@ impl connect::HasPeerAddr for Endpoint {
 
 impl HasWeight for Endpoint {
     fn weight(&self) -> Weight {
-        self.metadata.weight()
+        let w = self.metadata.weight();
+        trace!("endpoint={:?}; weight={:?}", self.addr, w);
+        w
     }
 }
 
@@ -233,7 +235,7 @@ pub mod discovery {
                                     tls::ReasonForNoPeerName::NotProvidedByServiceDiscovery.into(),
                                 )
                             });
-                        debug!("adding addr={}; identity={:?}", addr, identity);
+                        debug!("adding addr={}; metadata={:#?}", addr, metadata);
                         let ep = Endpoint {
                             dst_name: Some(name.clone()),
                             addr,

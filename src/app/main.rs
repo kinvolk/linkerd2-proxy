@@ -491,7 +491,6 @@ where
             // 3. Retries are optionally enabled depending on if the route
             //    is retryable.
             let dst_route_layer = svc::builder()
-                .buffer_pending(max_in_flight, DispatchDeadline::extract)
                 .layer(classify::layer())
                 .layer(metrics::layer::<_, classify::Response>(route_http_metrics))
                 .layer(proxy::http::timeout::layer())

@@ -1488,7 +1488,7 @@ dependencies = [
 [[package]]
 name = "tower-balance"
 version = "0.1.0"
-source = "git+https://github.com/olix0r/tower?branch=ver/no-float#f8b150b43ed24df628abe3e96ab52bfdc7673867"
+source = "git+https://github.com/olix0r/tower?branch=ver/no-float#81739a27dca1c15860e92932cae1bc9c64f4544a"
 dependencies = [
  "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
