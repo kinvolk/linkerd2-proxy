@@ -668,20 +668,6 @@ where
                 .service(client_stack)
                 .make();
 
-            // A per-`dst::Route` layer that uses profile data to configure
-            // a per-route layer.
-            //
-            // The `classify` module installs a `classify::Response`
-            // extension into each request so that all lower metrics
-            // implementations can use the route-specific configuration.
-            let dst_route_stack = svc::builder()
-                .buffer_pending(max_in_flight, DispatchDeadline::extract)
-                .layer(classify::layer())
-                .layer(http_metrics::layer::<_, classify::Response>(
-                    route_http_metrics,
-                ))
-                .layer(insert::target::layer());
-
             // A per-`DstAddr` stack that does the following:
             //
             // 1. Determines the profile of the destination and applies
@@ -692,7 +678,19 @@ where
                 .layer(profiles::router::layer(
                     profile_suffixes,
                     profiles_client,
-                    dst_route_stack,
+                    // A per-`dst::Route` layer that uses profile data to configure
+                    // a per-route layer.
+                    //
+                    // The `classify` module installs a `classify::Response`
+                    // extension into each request so that all lower metrics
+                    // implementations can use the route-specific configuration.
+                    svc::builder()
+                        .buffer_pending(max_in_flight, DispatchDeadline::extract)
+                        .layer(classify::layer())
+                        .layer(http_metrics::layer::<_, classify::Response>(
+                            route_http_metrics,
+                        ))
+                        .layer(insert::target::layer()),
                 ))
                 .buffer_pending(max_in_flight, DispatchDeadline::extract)
                 .layer(insert::target::layer())
