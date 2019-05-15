@@ -12,11 +12,15 @@ use hyper::body::Payload;
 use self::tower_discover::Discover;
 
 pub use self::hyper_balance::{PendingUntilFirstData, PendingUntilFirstDataBody};
-use self::tower_balance::{choose::PowerOfTwoChoices, load::WithPeakEwma, Balance, WithWeighted};
-pub use self::tower_balance::{HasWeight, Weight, Weighted};
+use self::tower_balance::{load::WithPeakEwma, P2CBalance};
+pub use self::tower_balance::{Weight, Weighted};
 
 use http;
 use svc;
+
+pub trait HasWeight {
+    fn weight(&self) -> Weight;
+}
 
 /// Configures a stack to resolve `T` typed targets to balance requests over
 /// `M`-typed endpoint stacks.
@@ -90,17 +94,13 @@ impl<T, M, K, A, B> svc::Service<T> for MakeSvc<M, K, A, B>
 where
     M: svc::Service<T>,
     M::Response: Discover<Key = Weighted<K>>,
-    <M::Response as Discover>::Key: HasWeight,
     <M::Response as Discover>::Service:
         svc::Service<http::Request<A>, Response = http::Response<B>>,
     K: cmp::Eq + hash::Hash,
     A: Payload,
     B: Payload,
 {
-    type Response = Balance<
-        WithWeighted<WithPeakEwma<M::Response, PendingUntilFirstData>, K>,
-        PowerOfTwoChoices,
-    >;
+    type Response = P2CBalance<WithPeakEwma<M::Response, PendingUntilFirstData>, K>;
     type Error = M::Error;
     type Future = MakeSvc<M::Future, K, A, B>;
 
@@ -129,19 +129,13 @@ where
     A: Payload,
     B: Payload,
 {
-    type Item =
-        Balance<WithWeighted<WithPeakEwma<F::Item, PendingUntilFirstData>, K>, PowerOfTwoChoices>;
+    type Item = P2CBalance<WithPeakEwma<F::Item, PendingUntilFirstData>, K>;
     type Error = F::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let discover = try_ready!(self.inner.poll());
         let instrument = PendingUntilFirstData::default();
-        let loaded = WithWeighted::from(WithPeakEwma::new(
-            discover,
-            self.default_rtt,
-            self.decay,
-            instrument,
-        ));
-        Ok(Balance::p2c(loaded).into())
+        let loaded = WithPeakEwma::new(discover, self.default_rtt, self.decay, instrument);
+        Ok(P2CBalance::new(loaded).into())
     }
 }

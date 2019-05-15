@@ -1,4 +1,5 @@
-#![deny(warnings)]
+//#![deny(warnings)]
+#![allow(warnings)]
 #![recursion_limit = "128"]
 
 extern crate bytes;

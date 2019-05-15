@@ -87,7 +87,7 @@ pub struct Metadata {
     /// specify weights as small as 0.0001 and as large as 400,000+.
     ///
     /// A float is not used so that this type can implement `Eq`.
-    weight: u32,
+    weight: Weight,
 
     /// Arbitrary endpoint labels. Primarily used for telemetry.
     labels: IndexMap<String, String>,
@@ -191,7 +191,7 @@ impl Metadata {
             labels: IndexMap::default(),
             protocol_hint: ProtocolHint::Unknown,
             identity: None,
-            weight: 10_000,
+            weight: Weight::UNIT,
         }
     }
 
@@ -205,7 +205,7 @@ impl Metadata {
             labels,
             protocol_hint,
             identity,
-            weight,
+            weight: Weight(weight as usize),
         }
     }
 
@@ -223,7 +223,6 @@ impl Metadata {
     }
 
     pub fn weight(&self) -> Weight {
-        let w: f64 = self.weight.into();
-        (w / 10_000.0).into()
+        self.weight
     }
 }
