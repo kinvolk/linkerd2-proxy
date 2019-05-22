@@ -767,6 +767,7 @@ where
                     },
                 ))
                 .buffer_pending(max_in_flight, DispatchDeadline::extract)
+                .layer(strip_header::request::layer(super::CANONICAL_DST_HEADER))
                 .service(dst_stack)
                 .make();
 
