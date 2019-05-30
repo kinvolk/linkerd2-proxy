@@ -484,26 +484,6 @@ where
                 .layer(strip_header::response::layer(super::L5D_REMOTE_IP))
                 .service(client_stack);
 
-            // A per-`dst::Route` layer that uses profile data to configure
-            // a per-route layer.
-            //
-            // 1. The `classify` module installs a `classify::Response`
-            //    extension into each request so that all lower metrics
-            //    implementations can use the route-specific configuration.
-            // 2. A timeout is optionally enabled if the target `dst::Route`
-            //    specifies a timeout. This goes before `retry` to cap
-            //    retries.
-            // 3. Retries are optionally enabled depending on if the route
-            //    is retryable.
-            let dst_route_layer = svc::builder()
-                .buffer_pending(max_in_flight, DispatchDeadline::extract)
-                .layer(classify::layer())
-                .layer(metrics::layer::<_, classify::Response>(route_http_metrics))
-                .layer(proxy::http::timeout::layer())
-                .layer(retry::layer(retry_http_metrics.clone()))
-                .layer(metrics::layer::<_, classify::Response>(retry_http_metrics))
-                .layer(insert::target::layer());
-
             let balancer = svc::builder()
                 .layer(balance::layer(EWMA_DEFAULT_RTT, EWMA_DECAY))
                 .layer(resolve::layer(Resolve::new(resolver)))
@@ -525,6 +505,26 @@ where
             let balancer_stack = svc::builder()
                 .layer(fallback::layer(balancer, orig_dst_router))
                 .service(endpoint_stack);
+
+            // A per-`dst::Route` layer that uses profile data to configure
+            // a per-route layer.
+            //
+            // 1. The `classify` module installs a `classify::Response`
+            //    extension into each request so that all lower metrics
+            //    implementations can use the route-specific configuration.
+            // 2. A timeout is optionally enabled if the target `dst::Route`
+            //    specifies a timeout. This goes before `retry` to cap
+            //    retries.
+            // 3. Retries are optionally enabled depending on if the route
+            //    is retryable.
+            let dst_route_layer = svc::builder()
+                .buffer_pending(max_in_flight, DispatchDeadline::extract)
+                .layer(classify::layer())
+                .layer(metrics::layer::<_, classify::Response>(route_http_metrics))
+                .layer(proxy::http::timeout::layer())
+                .layer(retry::layer(retry_http_metrics.clone()))
+                .layer(metrics::layer::<_, classify::Response>(retry_http_metrics))
+                .layer(insert::target::layer());
 
             // A per-`DstAddr` stack that does the following:
             //
