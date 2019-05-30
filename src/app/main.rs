@@ -507,8 +507,6 @@ where
             let balancer = svc::builder()
                 .layer(balance::layer(EWMA_DEFAULT_RTT, EWMA_DECAY))
                 .layer(resolve::layer(Resolve::new(resolver)))
-                .pending()
-                // TODO this should be moved above `pending`.
                 .spawn_ready();
 
             // Routes requests to their original destination endpoints. Used as

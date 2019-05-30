@@ -181,7 +181,7 @@ mod tests {
     use std::collections::VecDeque;
     use std::io::Cursor;
     use std::sync::{Arc, Weak};
-    use tower_balance::load::Instrument;
+    use tower_load::Instrument;
 
     use super::{PendingUntilEos, PendingUntilFirstData};
 
