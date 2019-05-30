@@ -1656,7 +1656,7 @@ dependencies = [
 [[package]]
 name = "tower-spawn-ready"
 version = "0.1.0"
-source = "git+https://github.com/olix0r/tower?branch=ver/spawn-ready-layer#797cad89c64aa6aeb50870ecebd63a5b58d6219b"
+source = "git+https://github.com/olix0r/tower?branch=ver/spawn-ready-layer#1876a2b5f7c0e7e0ee262416345e47ce4c98c3df"
 dependencies = [
  "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-executor 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
