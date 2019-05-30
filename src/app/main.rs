@@ -509,8 +509,7 @@ where
                 .layer(resolve::layer(Resolve::new(resolver)))
                 .pending()
                 // TODO this should be moved above `pending`.
-                .spawn_ready()
-                ;
+                .spawn_ready();
 
             // Routes requests to their original destination endpoints. Used as
             // a fallback when service discovery has no endpoints for a destination.
