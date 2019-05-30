@@ -106,4 +106,5 @@ debug = false
 webpki = { git = "https://github.com/seanmonstar/webpki", branch = "cert-dns-names" }
 
 [patch."https://github.com/tower-rs/tower"]
-tower-spawn-ready = { git = "https://github.com/olix0r/tower", branch = "ver/spawn-ready-clone" }
+#tower-balance = { git = "https://github.com/olix0r/tower", branch = "ver/spawn-ready-clone" }
+tower-spawn-ready = { git = "https://github.com/olix0r/tower", branch = "ver/spawn-ready-layer" }

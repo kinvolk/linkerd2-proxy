@@ -527,6 +527,8 @@ where
             //     .layer(fallback::layer(balancer, orig_dst_router))
             //     .service(endpoint_stack);
 
+            let balancer_stack = balancer.layer(endpoint_stack);
+
             // // A per-`DstAddr` stack that does the following:
             // //
             // // 1. Adds the `CANONICAL_DST_HEADER` from the `DstAddr`.
@@ -543,7 +545,6 @@ where
             //     ))
             //     .buffer_pending(max_in_flight, DispatchDeadline::extract)
             //     .service(balancer_stack);
-            let dst_stack = balancer.layer(endpoint_stack);
 
             // Routes request using the `DstAddr` extension.
             //
@@ -562,7 +563,7 @@ where
                     },
                 ))
                 .buffer_pending(max_in_flight, DispatchDeadline::extract)
-                .service(balancer.service(endpoint_stack))
+                .service(balancer_stack)
                 .make();
 
             // Canonicalizes the request-specified `Addr` via DNS, and

@@ -49,7 +49,7 @@ impl<L> Builder<L> {
     }
 
     /// Buffer requests when when the next layer is out of capacity.
-    pub fn spawn_ready<S, Req>(self) -> Builder<Stack<SpawnReadyLayer<Req>, L>> {
+    pub fn spawn_ready(self) -> Builder<Stack<SpawnReadyLayer, L>> {
         self.layer(SpawnReadyLayer::new())
     }
 
