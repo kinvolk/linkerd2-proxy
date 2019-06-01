@@ -22,6 +22,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY lib lib
 RUN cargo fetch --locked
 
+ENV	RUSTCFLAGS="-C debuginfo=2"
+
 # Build libraries, leaving the proxy mocked out.
 ARG PROXY_UNOPTIMIZED
 RUN if [ -n "$PROXY_UNOPTIMIZED" ]; \
@@ -44,6 +46,8 @@ RUN if [ -n "$PROXY_UNOPTIMIZED" ]; \
 ## Install the proxy binary into the base runtime image.
 FROM $RUNTIME_IMAGE as runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install g++ valgrind -y
+RUN apt-get install -y google-perftools
 WORKDIR /linkerd
 COPY --from=build /usr/src/linkerd2-proxy/target/linkerd2-proxy /usr/lib/linkerd/linkerd2-proxy
 ENV LINKERD2_PROXY_LOG=warn,linkerd2_proxy=info
+COPY run-proxy.sh /usr/bin/linkerd2-proxy-run
