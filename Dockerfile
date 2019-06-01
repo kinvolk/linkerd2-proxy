@@ -9,7 +9,7 @@
 
 # rather than updating this manually, run update-rust-version.sh
 ARG RUST_IMAGE=rust:1.34.1
-ARG RUNTIME_IMAGE=gcr.io/linkerd-io/proxy:edge-19.4.3
+ARG RUNTIME_IMAGE=gcr.io/linkerd-io/proxy:edge-19.5.4
 
 ## Builds the proxy as incrementally as possible.
 FROM $RUST_IMAGE as build
@@ -43,6 +43,7 @@ RUN if [ -n "$PROXY_UNOPTIMIZED" ]; \
 
 ## Install the proxy binary into the base runtime image.
 FROM $RUNTIME_IMAGE as runtime
+RUN apt-get update && apt-get upgrade -y && apt-get install g++ valgrind -y
 WORKDIR /linkerd
 COPY --from=build /usr/src/linkerd2-proxy/target/linkerd2-proxy /usr/lib/linkerd/linkerd2-proxy
 ENV LINKERD2_PROXY_LOG=warn,linkerd2_proxy=info
