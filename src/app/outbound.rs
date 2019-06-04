@@ -55,13 +55,19 @@ impl Endpoint {
             .extensions()
             .get::<proxy::Source>()?
             .orig_dst_if_not_local()?;
+
+        let identity = proxy::http::force_id_from_header(req, super::L5D_FORCE_ID)
+            .map(Conditional::Some)
+            .unwrap_or_else(|| {
+                Conditional::None(tls::ReasonForNoPeerName::NotProvidedByServiceDiscovery.into())
+            });
+
         let http_settings = settings::Settings::from_request(req);
+
         Some(Self {
             addr,
             dst_name: None,
-            identity: Conditional::None(
-                tls::ReasonForNoPeerName::NotProvidedByServiceDiscovery.into(),
-            ),
+            identity,
             metadata: Metadata::empty(),
             http_settings,
         })
