@@ -107,7 +107,11 @@ impl Proxy {
     }
 
     pub fn run_with_test_env(self, env: app::config::TestEnv) -> Listening {
-        run(self, env)
+        run(self, env, true)
+    }
+
+    pub fn run_with_test_env_and_keep_ports(self, env: app::config::TestEnv) -> Listening {
+        run(self, env, false)
     }
 }
 
@@ -137,7 +141,7 @@ impl linkerd2_proxy::transport::GetOriginalDst for MockOriginalDst {
     }
 }
 
-fn run(proxy: Proxy, mut env: app::config::TestEnv) -> Listening {
+fn run(proxy: Proxy, mut env: app::config::TestEnv, random_ports: bool) -> Listening {
     let controller = proxy.controller.unwrap_or_else(|| controller::new().run());
     let inbound = proxy.inbound;
     let outbound = proxy.outbound;
@@ -148,10 +152,12 @@ fn run(proxy: Proxy, mut env: app::config::TestEnv) -> Listening {
         app::config::ENV_DESTINATION_SVC_ADDR,
         format!("{}", controller.addr),
     );
-    env.put(
-        app::config::ENV_OUTBOUND_LISTEN_ADDR,
-        "127.0.0.1:0".to_owned(),
-    );
+    if random_ports {
+        env.put(
+            app::config::ENV_OUTBOUND_LISTEN_ADDR,
+            "127.0.0.1:0".to_owned(),
+        );
+    }
     if let Some(ref inbound) = inbound {
         env.put(
             app::config::ENV_INBOUND_FORWARD,
@@ -162,15 +168,17 @@ fn run(proxy: Proxy, mut env: app::config::TestEnv) -> Listening {
     if let Some(ref outbound) = outbound {
         mock_orig_dst.outbound_orig_addr = Some(outbound.addr);
     }
-    env.put(
-        app::config::ENV_INBOUND_LISTEN_ADDR,
-        "127.0.0.1:0".to_owned(),
-    );
-    env.put(
-        app::config::ENV_CONTROL_LISTEN_ADDR,
-        "127.0.0.1:0".to_owned(),
-    );
-    env.put(app::config::ENV_ADMIN_LISTEN_ADDR, "127.0.0.1:0".to_owned());
+    if random_ports {
+        env.put(
+            app::config::ENV_INBOUND_LISTEN_ADDR,
+            "127.0.0.1:0".to_owned(),
+        );
+        env.put(
+            app::config::ENV_CONTROL_LISTEN_ADDR,
+            "127.0.0.1:0".to_owned(),
+        );
+        env.put(app::config::ENV_ADMIN_LISTEN_ADDR, "127.0.0.1:0".to_owned());
+    }
 
     static IDENTITY_SVC_NAME: &'static str = "LINKERD2_PROXY_IDENTITY_SVC_NAME";
     static IDENTITY_SVC_ADDR: &'static str = "LINKERD2_PROXY_IDENTITY_SVC_ADDR";
