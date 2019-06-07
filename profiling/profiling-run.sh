@@ -1,32 +1,34 @@
 #!/bin/bash
-# please allow perf for non-root users: echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
-# @TODO: check before starting the script?
-# needs "cargo install inferno" for inferno-flamegraph, or git clone https://github.com/brendangregg/FlameGraph for flamegraph.pl
-set -x
 set -o errexit
 set -o nounset
 set -o pipefail
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
-SERVER_NAME="server"
-SERVER_PORT=8007
+SERVER_PORT=8080
 PROFDIR=$(dirname "$0")
 
-trap '{ killall "${SERVER_NAME}" >& /dev/null; }' EXIT
+typeset -i PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid)
+if [ "$PARANOID" -ne "-1" ]; then
+  echo "To capture kernel events please run: echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid"
+  exit 1
+fi
 
 cd "$PROFDIR"
-cc -o $SERVER_NAME server.c
+which inferno-collapse-perf inferno-flamegraph || cargo install inferno
+which actix-web-server || cargo install --path actix-web-server
+
+trap '{ killall actix-web-server >& /dev/null; }' EXIT
 
 single_profiling_run () {
   (
-  ./$SERVER_NAME -p $SERVER_PORT &
+  actix-web-server &
   SPID=$!
   # wait for proxy to start
   until ss -tan | grep "LISTEN.*:$PROXY_PORT"
   do
     sleep 1
   done
-  ab -n 3000 -c 50 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/server.c" | tee "$NAME.txt"
+  ab -n 3000 -c 50 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME.txt"
   # signal that proxy can terminate now
   echo F | ncat localhost 7777 || true
   # kill server

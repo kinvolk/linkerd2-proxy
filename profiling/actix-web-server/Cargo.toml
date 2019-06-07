@@ -1,0 +1,14 @@
+[package]
+name = "actix-web-server"
+version = "0.1.0"
+authors = ["Kai Lüke <kai@kinvolk.io>"]
+edition = "2018"
+
+[workspace]
+
+[dependencies]
+actix-web = "1.0.0"
+actix-http = { version="0.2.3", default-features = false }
+actix-rt = "0.2.2"
+actix-server = "0.5.1"
+bytes = "0.4.12"
