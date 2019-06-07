@@ -1,1 +1,6 @@
 target
+profiling/flamegraph*
+profiling/*folded
+profiling/*txt
+profiling/server
+profiling/perf.data
