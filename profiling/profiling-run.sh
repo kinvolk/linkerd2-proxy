@@ -8,14 +8,18 @@ set -o nounset
 set -o pipefail
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
+SERVER_NAME="server"
 SERVER_PORT=8007
 PROFDIR=$(dirname "$0")
+
+trap '{ killall "${SERVER_NAME}" >& /dev/null; }' EXIT
+
 cd "$PROFDIR"
-cc -o server server.c
+cc -o $SERVER_NAME server.c
 
 single_profiling_run () {
   (
-  ./server -p $SERVER_PORT &
+  ./$SERVER_NAME -p $SERVER_PORT &
   SPID=$!
   # wait for proxy to start
   until ss -tan | grep "LISTEN.*:$PROXY_PORT"
