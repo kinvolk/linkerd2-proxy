@@ -173,17 +173,21 @@ where
             trace!("watch: {:?}", up);
             match up {
                 Update::Add(addr, target) => {
+                    // Start building the service and continue.
                     let fut = self.make.call(target);
                     self.makes.push(addr, fut);
                 }
                 Update::Remove(addr) => {
+                    // If the service is still pending, cancel it. It won't
+                    // actually be removed until a subsequent poll, however.
                     self.makes.remove(&addr);
                     return Ok(Async::Ready(Change::Remove(addr)));
                 }
                 Update::NoEndpoints => {
+                    // Mark the service as explicitly empty. It's expected that
+                    // Remove events have already or will be receieved to
+                    // actually empty the receiver.
                     self.is_empty.store(true, Ordering::Release);
-                    // Keep polling as we should now start to see removals.
-                    continue;
                 }
             }
         }
