@@ -349,7 +349,7 @@ mod tests {
             let (mut reso_tx, resolution) = mpsc::channel(1);
             let (make0_tx, make0_rx) = oneshot::channel::<Svc<usize>>();
             let (make1_tx, make1_rx) = oneshot::channel::<Svc<usize>>();
-            let make = Svc(vec![make0_rx, make1_rx]);
+            let make = Svc(vec![make1_rx, make0_rx]);
 
             let mut discover = Discover::new(resolution, make);
             assert!(
