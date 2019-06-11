@@ -1,3 +1,4 @@
+use support::linkerd2_proxy::app::config::Strings;
 use support::*;
 
 use std::sync::{Arc, Mutex};
@@ -178,6 +179,19 @@ fn run(proxy: Proxy, mut env: app::config::TestEnv, random_ports: bool) -> Liste
             "127.0.0.1:0".to_owned(),
         );
         env.put(app::config::ENV_ADMIN_LISTEN_ADDR, "127.0.0.1:0".to_owned());
+    } else {
+        let local_inbound = env
+            .get(app::config::ENV_INBOUND_LISTEN_ADDR)
+            .unwrap_or(None)
+            .unwrap_or(app::config::DEFAULT_INBOUND_LISTEN_ADDR.to_owned())
+            .replace("0.0.0.0", "127.0.0.1");
+        env.put(app::config::ENV_INBOUND_LISTEN_ADDR, local_inbound);
+        let local_control = env
+            .get(app::config::ENV_CONTROL_LISTEN_ADDR)
+            .unwrap_or(None)
+            .unwrap_or(app::config::DEFAULT_CONTROL_LISTEN_ADDR.to_owned())
+            .replace("0.0.0.0", "127.0.0.1");
+        env.put(app::config::ENV_CONTROL_LISTEN_ADDR, local_control);
     }
 
     static IDENTITY_SVC_NAME: &'static str = "LINKERD2_PROXY_IDENTITY_SVC_NAME";
