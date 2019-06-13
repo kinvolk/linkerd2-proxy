@@ -34,11 +34,16 @@ single_profiling_run () {
   do
     sleep 1
   done
+  LINKERD_TEST_BIN=$(ls ../target/release/profiling-*[^.d])
+  ( ./wss.pl $(pgrep -f -x "$LINKERD_TEST_BIN --exact profiling_setup --nocapture") 6 | tee "wss_$NAME.txt" ) &
   if [ "$MODE" = "TCP" ]; then
     iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.txt"
   else
     wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME.txt"
   fi
+  while pgrep wss.pl; do
+    sleep 1
+  done
   # signal that proxy can terminate now
   echo F | nc localhost 7777 || true
   # kill server
