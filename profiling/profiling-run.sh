@@ -6,6 +6,7 @@ PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 SERVER_PORT=8080
 PROFDIR=$(dirname "$0")
+ID=$(date +"%Y%h%d_%Hh%Mm%Ss")
 
 typeset -i PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid)
 if [ "$PARANOID" -ne "-1" ]; then
@@ -40,11 +41,11 @@ single_profiling_run () {
     sleep 1
   done
   LINKERD_TEST_BIN=$(ls ../target/release/profiling-*[^.d])
-  ( ./wss.pl $(pgrep -f -x "$LINKERD_TEST_BIN --exact profiling_setup --nocapture") 6 | tee "wss_$NAME.txt" ) &
+  ( ./wss.pl $(pgrep -f -x "$LINKERD_TEST_BIN --exact profiling_setup --nocapture") 6 | tee "wss_$NAME.$ID.txt" ) &
   if [ "$MODE" = "TCP" ]; then
-    iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.txt"
+    iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.$ID.txt"
   else
-    wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME.txt"
+    wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME.$ID.txt"
   fi
   while pgrep wss.pl; do
     sleep 1
@@ -56,8 +57,8 @@ single_profiling_run () {
   ) &
   rm ./perf.data* || true
   PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" perf record -F 2000 --call-graph dwarf ../target/release/profiling-*[^.d] --exact profiling_setup --nocapture # ignore .d folder
-  perf script | inferno-collapse-perf > "out_$NAME.folded"  # separate step to be able to rerun flamegraph with another width
-  inferno-flamegraph --width 4000 "out_$NAME.folded" > "flamegraph_$NAME.svg"  # or: flamegraph.pl instead of inferno-flamegraph
+  perf script | inferno-collapse-perf > "out_$NAME.$ID.folded"  # separate step to be able to rerun flamegraph with another width
+  inferno-flamegraph --width 4000 "out_$NAME.$ID.folded" > "flamegraph_$NAME.$ID.svg"  # or: flamegraph.pl instead of inferno-flamegraph
 }
 
 MODE=TCP NAME=tcpoutbound PROXY_PORT=$PROXY_PORT_OUTBOUND single_profiling_run
