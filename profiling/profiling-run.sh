@@ -18,6 +18,11 @@ which inferno-collapse-perf inferno-flamegraph || cargo install inferno
 which actix-web-server || cargo install --path actix-web-server
 which inferno-collapse-perf inferno-flamegraph actix-web-server || ( echo "Please add ~/.cargo/bin to your PATH" ; exit 1 )
 which wrk || ( echo "wrk not found: Compile the wrk binary from https://github.com/kinvolk/wrk2/ and move it to your PATH" ; exit 1 )
+./wss.pl -h 2> /dev/null && RET=$? || RET=$?
+if [ $RET -eq 2 ]; then
+  echo "wss.pl can not start: Install the perl-Time-HiRes package of your distribution"
+  exit 1
+fi
 
 trap '{ killall iperf actix-web-server >& /dev/null; }' EXIT
 
