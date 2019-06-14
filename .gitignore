@@ -2,4 +2,7 @@ target
 profiling/flamegraph*
 profiling/*folded
 profiling/*txt
+profiling/*dat
+profiling/memory-profiler-*
+profiling/libmemory_profiler.so
 profiling/perf.data
