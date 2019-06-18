@@ -12,6 +12,7 @@ cd "$PROFDIR"
 which actix-web-server || cargo install --path actix-web-server
 which actix-web-server || ( echo "Please add ~/.cargo/bin to your PATH" ; exit 1 )
 which wrk || ( echo "wrk not found: Compile the wrk binary from https://github.com/kinvolk/wrk2/ and move it to your PATH" ; exit 1 )
+ls ../target/release/profiling-opt-and-dbg-symbols || ( echo "../target/release/profiling-opt-and-dbg-symbols not found: Please run ./profiling-build.sh" ; exit 1 )
 ./wss.pl -h 2> /dev/null && RET=$? || RET=$?
 if [ $RET -eq 2 ]; then
   echo "wss.pl can not start: Install the perl-Time-HiRes package of your distribution"
@@ -48,7 +49,7 @@ single_profiling_run () {
   # kill server
   kill $SPID
   ) &
-  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" ../target/release/profiling-*[^.d] --exact profiling_setup --nocapture # ignore .d folder
+  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" ../target/release/profiling-opt-and-dbg-symbols --exact profiling_setup --nocapture
 }
 
 MODE=TCP NAME=tcpoutbound PROXY_PORT=$PROXY_PORT_OUTBOUND single_profiling_run

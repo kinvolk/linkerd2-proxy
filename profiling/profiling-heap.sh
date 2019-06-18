@@ -13,6 +13,7 @@ which actix-web-server || cargo install --path actix-web-server
 which actix-web-server || ( echo "Please add ~/.cargo/bin to your PATH" ; exit 1 )
 which wrk || ( echo "wrk not found: Compile the wrk binary from https://github.com/kinvolk/wrk2/ and move it to your PATH" ; exit 1 )
 ls libmemory_profiler.so memory-profiler-cli || ( curl -L -O https://github.com/nokia/memory-profiler/releases/download/0.3.0/memory-profiler-x86_64-unknown-linux-gnu.tgz ; tar xf memory-profiler-x86_64-unknown-linux-gnu.tgz ; rm memory-profiler-x86_64-unknown-linux-gnu.tgz )
+ls ../target/release/profiling-opt-and-dbg-symbols || ( echo "../target/release/profiling-opt-and-dbg-symbols not found: Please run ./profiling-build.sh" ; exit 1 )
 
 trap '{ killall iperf actix-web-server >& /dev/null; }' EXIT
 
@@ -40,7 +41,7 @@ single_profiling_run () {
   kill $SPID
   ) &
   rm memory-profiling_*.dat || true
-  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" LD_PRELOAD=./libmemory_profiler.so ../target/release/profiling-*[^.d] --exact profiling_setup --nocapture # ignore .d folder
+  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" LD_PRELOAD=./libmemory_profiler.so ../target/release/profiling-opt-and-dbg-symbols --exact profiling_setup --nocapture
   mv memory-profiling_*.dat "$NAME.$ID.heap.dat"
   ./memory-profiler-cli export-heaptrack "$NAME.$ID.heap.dat" --output "$NAME.$ID.heaptrack.dat"
 }

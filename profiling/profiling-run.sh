@@ -19,6 +19,7 @@ which inferno-collapse-perf inferno-flamegraph || cargo install inferno
 which actix-web-server || cargo install --path actix-web-server
 which inferno-collapse-perf inferno-flamegraph actix-web-server || ( echo "Please add ~/.cargo/bin to your PATH" ; exit 1 )
 which wrk || ( echo "wrk not found: Compile the wrk binary from https://github.com/kinvolk/wrk2/ and move it to your PATH" ; exit 1 )
+ls ../target/release/profiling-opt-and-dbg-symbols || ( echo "../target/release/profiling-opt-and-dbg-symbols not found: Please run ./profiling-build.sh" ; exit 1 )
 
 trap '{ killall iperf actix-web-server >& /dev/null; }' EXIT
 
@@ -46,7 +47,7 @@ single_profiling_run () {
   kill $SPID
   ) &
   rm ./perf.data* || true
-  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" perf record -F 2000 --call-graph dwarf ../target/release/profiling-*[^.d] --exact profiling_setup --nocapture # ignore .d folder
+  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" perf record -F 2000 --call-graph dwarf ../target/release/profiling-opt-and-dbg-symbols --exact profiling_setup --nocapture
   perf script | inferno-collapse-perf > "out_$NAME.$ID.folded"  # separate step to be able to rerun flamegraph with another width
   inferno-flamegraph --width 4000 "out_$NAME.$ID.folded" > "flamegraph_$NAME.$ID.svg"  # or: flamegraph.pl instead of inferno-flamegraph
 }
