@@ -49,6 +49,7 @@ MODE=TCP NAME=tcpoutbound PROXY_PORT=$PROXY_PORT_OUTBOUND single_profiling_run
 MODE=TCP NAME=tcpinbound PROXY_PORT=$PROXY_PORT_INBOUND single_profiling_run
 MODE=HTTP NAME=outbound PROXY_PORT=$PROXY_PORT_OUTBOUND single_profiling_run
 MODE=HTTP NAME=inbound PROXY_PORT=$PROXY_PORT_INBOUND single_profiling_run
+ls *$ID*.dat
 echo "a) Run './memory-profiler-cli server CHANGEME.$ID.heap.dat' and open http://localhost:8080/ to browse the memory graphs or,"
 echo "b) run 'heaptrack -a CHANGEME.$ID.heaptrack.dat' to open the heaptrack files for a detailed view."
 echo "(Replace CHANGEME with inbound, outbound, tcpinbound, tcpoutbound.)"
