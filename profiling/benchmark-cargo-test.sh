@@ -44,10 +44,10 @@ single_benchmark_run () {
       strest-grpc client --interval 10s --totalTargetRps $r --streams 4 --connections 4 --iterations 2 --address "127.0.0.1:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
     done
   fi
-  # signal that proxy can terminate now
-  echo F | nc localhost 7777 || true
   # kill server
   kill $SPID
+  # signal that proxy can terminate now
+  echo F | nc localhost 7777 || true
   ) &
   PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" cargo test --release profiling_setup -- --exact profiling_setup --nocapture
 }
