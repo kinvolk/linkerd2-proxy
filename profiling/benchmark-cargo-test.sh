@@ -34,18 +34,21 @@ single_benchmark_run () {
   if [ "$MODE" = "TCP" ]; then
     iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.$ID.txt"
   elif [ "$MODE" = "HTTP" ]; then
-    for i in 1 2; do
-      wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME$i.$ID.txt"
+    for r in 4000 8000 16000; do
+      for i in 1 2; do
+        wrk -d 10s -c 4 -t 4 -L -s wrk-report.lua -R $r -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME$i-$r-rps.$ID.txt"
+      done
     done
   else
-    strest-grpc client --totalTargetRps 4000 --streams 10 --connections 10 --iterations 2 --address "127.0.0.1:$PROXY_PORT" --clientTimeout 1s | tee "$NAME.$ID.txt"
+    for r in 4000 8000; do
+      strest-grpc client --interval 10s --totalTargetRps $r --streams 4 --connections 4 --iterations 2 --address "127.0.0.1:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
+    done
   fi
   # signal that proxy can terminate now
   echo F | nc localhost 7777 || true
   # kill server
   kill $SPID
   ) &
-  rm ./perf.data* || true
   PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" cargo test --release profiling_setup -- --exact profiling_setup --nocapture
 }
 
@@ -55,5 +58,5 @@ MODE=HTTP NAME=outbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND single_benchmark_r
 MODE=HTTP NAME=inbound_bench PROXY_PORT=$PROXY_PORT_INBOUND single_benchmark_run
 # outbount gRPC is not working # MODE=gRPC NAME=grpcoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND single_benchmark_run
 MODE=gRPC NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND single_benchmark_run
-echo "Benchmark results:"
+echo "Benchmark results (display with 'head -vn-0 *$ID.txt | less'):"
 ls *$ID*.txt
