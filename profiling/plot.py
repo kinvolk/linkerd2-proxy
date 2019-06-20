@@ -14,7 +14,7 @@ g = pd.concat([pd.read_csv(args.input1, index_col=["Test", " target req/s"]), pd
 g.groupby(level=["Test", " target req/s"])
 
 only_gbits = g[[" branch", " GBit/s"]][ g[" GBit/s"] > 0 ]
-rearrange_gbits = only_gbits.pivot_table(index = ['Test', ' target req/s'], columns = " branch", values = " GBit/s")
+rearrange_gbits = only_gbits.pivot_table(index = ['Test'], columns = " branch", values = " GBit/s")
 rearrange_gbits.plot(kind='bar', title="Throughput (GBit/s)", figsize=(10, 8))
 plt.xticks(rotation = 0)
 outfile_gbits = args.outputprefix + "gbits.png"
