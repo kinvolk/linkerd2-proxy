@@ -12,6 +12,7 @@ BRANCH_NAME=$(git symbolic-ref -q HEAD)
 BRANCH_NAME=${BRANCH_NAME##refs/heads/}
 BRANCH_NAME=${BRANCH_NAME:-HEAD}
 BRANCH_NAME=$(echo $BRANCH_NAME | sed -e 's/\//-/g')
+BRANCH_NAME=$BRANCH_NAME$ID
 
 cd "$PROFDIR"
 which actix-web-server || cargo install --path actix-web-server
@@ -21,7 +22,7 @@ which strest-grpc || ( echo "strest-grpc not found: Compile binary from https://
 
 trap '{ killall iperf actix-web-server strest-grpc >& /dev/null; }' EXIT
 
-echo "Test, target req/s, branch, p999 latency (ms), GBit/s" > "summary.$BRANCH_NAME.$ID.txt"
+echo "Test, target req/s, branch, p999 latency (ms), GBit/s" > "summary.$BRANCH_NAME.txt"
 
 single_benchmark_run () {
   (
@@ -46,7 +47,7 @@ single_benchmark_run () {
   if [ "$MODE" = "TCP" ]; then
     iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.$ID.txt"
     T=$(grep "/sec" "$NAME.$ID.txt" | cut -d' ' -f12)
-    echo "TCP $DIRECTION, 0, $BRANCH_NAME, 0, $T" >> "summary.$BRANCH_NAME.$ID.txt"
+    echo "TCP $DIRECTION, 0, $BRANCH_NAME, 0, $T" >> "summary.$BRANCH_NAME.txt"
   elif [ "$MODE" = "HTTP" ]; then
     for r in 4000 8000 16000; do
       S=0
@@ -55,13 +56,13 @@ single_benchmark_run () {
         T=$(tac "$NAME$i-$r-rps.$ID.txt" | grep -m 1 0.999 | cut -d':' -f2 | awk '{print $1}')
         S=$(python -c "print(max($S, $T))")
       done
-      echo "HTTP $DIRECTION, $r, $BRANCH_NAME, $S, 0" >> "summary.$BRANCH_NAME.$ID.txt"
+      echo "HTTP $DIRECTION, $r, $BRANCH_NAME, $S, 0" >> "summary.$BRANCH_NAME.txt"
     done
   else
     for r in 4000 8000; do
       strest-grpc client --interval 10s --totalTargetRps $r --streams 4 --connections 4 --iterations 5 --address "127.0.0.1:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
       T=$(grep -m 1 p999 "$NAME-$r-rps.$ID.txt" | cut -d':' -f2)
-      echo "gRPC $DIRECTION, $r, $BRANCH_NAME, $T, 0" >> "summary.$BRANCH_NAME.$ID.txt"
+      echo "gRPC $DIRECTION, $r, $BRANCH_NAME, $T, 0" >> "summary.$BRANCH_NAME.txt"
     done
   fi
   # kill server
@@ -81,4 +82,4 @@ MODE=gRPC DIRECTION=inbound NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUN
 echo "Benchmark results (display with 'head -vn-0 *$ID.txt | less'):"
 ls *$ID*.txt
 echo SUMMARY:
-cat "summary.$BRANCH_NAME.$ID.txt"
+cat "summary.$BRANCH_NAME.txt"

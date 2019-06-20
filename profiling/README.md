@@ -7,19 +7,18 @@ The script logs to files and generates a summary CSV with the
 
 ## Compare two branches
 
-The summary CSV can be compared in textual form:
+Two summary CSVs can be compared by plotting them as graphs:
 
 ```
 $ cd profiling/
 $ ./benchmark-cargo-test.sh ; git checkout master && ./benchmark-cargo-test.sh
-$ git diff --no-index --word-diff summary.mybranch.2019Jun19_15h13m12s.txt summary.master.2019Jun19_15h34m26s.txt
+$ ./plot.py summary.mybranch.2019Jun19_15h13m12s.txt summary.master.2019Jun19_15h34m26s.txt mybranch-vs-master-
+$ eog mybranch-vs-master-*png
 ```
 
-Another option is to merge the two files to visualize it with a plotter:
+Another option is to quickly compare in textual form:
 ```
-$ ( cat summary.mybranch.2019Jun19_15h13m12s.txt && tail -n +2 summary.master.2019Jun19_15h34m26s.txt ) > summary.csv
-$ python -c "print('\n'.join([a.replace(',', '', 2) for a in open('summary.csv').read().split('\n')]))" | sort -r > summary_merged_key.csv
-$ libreoffice summary_merged_key.csv # check "Comma" as separator while opening, then "Insert → Chart → Finish", right click on Y-Axis and "Scale → Logarithmic"
+$ git diff --no-index --word-diff summary.mybranch.2019Jun19_15h13m12s.txt summary.master.2019Jun19_15h34m26s.txt
 ```
 
 # Profiling
