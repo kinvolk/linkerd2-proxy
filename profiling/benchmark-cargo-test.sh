@@ -33,6 +33,11 @@ single_benchmark_run () {
   fi
   $SERVER &
   SPID=$!
+  # wait for service to start
+  until ss -tan | grep "LISTEN.*:$SERVER_PORT"
+  do
+    sleep 1
+  done
   # wait for proxy to start
   until ss -tan | grep "LISTEN.*:$PROXY_PORT"
   do
