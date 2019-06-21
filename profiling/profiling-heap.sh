@@ -34,7 +34,7 @@ single_profiling_run () {
   if [ "$MODE" = "TCP" ]; then
     iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.$ID.txt"
   else
-    wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME.$ID.txt"
+    wrk -L -s wrk-report.lua -R 4500 -H 'Host: transparency.test.svc.cluster.local' "http://localhost:$PROXY_PORT/" | tee "$NAME.$ID.txt"
   fi
   # signal that proxy can terminate now
   echo F | nc localhost 7777 || true
