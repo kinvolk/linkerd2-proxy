@@ -8,6 +8,7 @@ CONNECTIONS="${CONNECTIONS-4}"
 GRPC_STREAMS="${GRPC_STREAMS-4}"
 HTTP_RPS="${HTTP_RPS-4000 8000 16000}"
 GRPC_RPS="${GRPC_RPS-4000 8000}"
+REQ_BODY_LEN="${BODY_LEN-100}"
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 SERVER_PORT=8080
@@ -18,7 +19,7 @@ BRANCH_NAME=$(git symbolic-ref -q HEAD)
 BRANCH_NAME=${BRANCH_NAME##refs/heads/}
 BRANCH_NAME=${BRANCH_NAME:-HEAD}
 BRANCH_NAME=$(echo $BRANCH_NAME | sed -e 's/\//-/g')
-RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS Streams: $GRPC_STREAMS"
+RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS Streams: $GRPC_STREAMS Req body len: $REQ_BODY_LEN"
 
 cd "$PROFDIR"
 which actix-web-server || cargo install --path actix-web-server
@@ -58,7 +59,9 @@ single_benchmark_run () {
     for r in $HTTP_RPS; do
       S=0
       for i in $(seq $ITERATIONS); do
-        wrk -d "$DURATION" -c "$CONNECTIONS" -t "$CONNECTIONS" -L -s wrk-report.lua -R "$r" -H 'Host: transparency.test.svc.cluster.local' "http://localhost:$PROXY_PORT/" | tee "$NAME$i-$r-rps.$ID.txt"
+        python -c "print('wrk.body = \"' + '_' * $REQ_BODY_LEN + '\"')" > wrk-report-tmp.lua
+        cat wrk-report.lua >> wrk-report-tmp.lua
+        wrk -d "$DURATION" -c "$CONNECTIONS" -t "$CONNECTIONS" -L -s wrk-report-tmp.lua -R "$r" -H 'Host: transparency.test.svc.cluster.local' "http://localhost:$PROXY_PORT/" | tee "$NAME$i-$r-rps.$ID.txt"
         T=$(tac "$NAME$i-$r-rps.$ID.txt" | grep -m 1 "^ .*0.99*" | cut -d':' -f2 | awk '{print $1}')
         if [ -z "$T" ]; then
           echo "No values for 0.9 percentiles found"
@@ -70,7 +73,7 @@ single_benchmark_run () {
     done
   else
     for r in $GRPC_RPS; do
-      strest-grpc client --interval "$DURATION" --totalTargetRps "$r" --streams "$GRPC_STREAMS" --connections "$CONNECTIONS" --iterations "$ITERATIONS" --address "localhost:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
+      strest-grpc client --interval "$DURATION" --totalTargetRps "$r" --requestLengthPercentiles "100=$REQ_BODY_LEN" --streams "$GRPC_STREAMS" --connections "$CONNECTIONS" --iterations "$ITERATIONS" --address "localhost:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
       T=$(grep -m 1 p999 "$NAME-$r-rps.$ID.txt" | cut -d':' -f2)
       echo "gRPC $DIRECTION, $r, $RUN_NAME, $T, 0" >> "summary.$RUN_NAME.txt"
     done

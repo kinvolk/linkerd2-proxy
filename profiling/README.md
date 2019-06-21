@@ -39,10 +39,12 @@ Please see the actual req/s in the log output.
 
 `GRPC_RPS="4000 8000"`: As above but for gRPC.
 
+`REQ_BODY_LEN="100"`: Length of the request body payload in byte.
+
 Dummy values to illustrate usage for a quick test run:
 
 ```
-$ ITERATIONS=2 DURATION=2s CONNECTIONS=2 GRPC_STREAMS=2 HTTP_RPS="100 1000" GRPC_RPS="100 1000" ./benchmark-cargo-test.sh
+$ ITERATIONS=2 DURATION=2s CONNECTIONS=2 GRPC_STREAMS=2 HTTP_RPS="100 1000" GRPC_RPS="100 1000" REQ_BODY_LEN="8000" ./benchmark-cargo-test.sh
 ```
 
 # Profiling

@@ -6,3 +6,4 @@ profiling/*dat
 profiling/memory-profiler-*
 profiling/libmemory_profiler.so
 profiling/perf.data
+profiling/wrk-report-tmp.lua
