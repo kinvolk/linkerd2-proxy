@@ -30,6 +30,11 @@ single_profiling_run () {
   fi
   $SERVER &
   SPID=$!
+  # wait for service to start
+  until ss -tan | grep "LISTEN.*:$SERVER_PORT"
+  do
+    sleep 1
+  done
   # wait for proxy to start
   until ss -tan | grep "LISTEN.*:$PROXY_PORT"
   do
@@ -44,10 +49,10 @@ single_profiling_run () {
   while pgrep wss.pl; do
     sleep 1
   done
-  # signal that proxy can terminate now
-  echo F | nc localhost 7777 || true
   # kill server
   kill $SPID
+  # signal that proxy can terminate now
+  echo F | nc localhost 7777 || true
   ) &
   PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" $LINKERD_TEST_BIN --exact profiling_setup --nocapture
 }
