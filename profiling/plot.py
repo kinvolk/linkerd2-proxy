@@ -23,7 +23,7 @@ plt.savefig(outfile_gbits, bbox_inches='tight')
 
 only_latency = g[[" branch", " p999 latency (ms)"]][ g[" p999 latency (ms)"] > 0 ]
 rearrange_latency = only_latency.pivot_table(index = ['Test', ' target req/s'], columns = " branch", values = " p999 latency (ms)")
-rearrange_latency.plot(kind='bar', logy=True, title="p999 Latency (ms)", figsize=(13, 3), fontsize=7)
+rearrange_latency.plot(kind='bar', logy=True, title="p999 Latency (ms)", figsize=(15, 3), fontsize=7)
 plt.xticks(rotation = 0)
 outfile_latency = args.outputprefix + "latency.png"
 print("Save graph to", outfile_latency)

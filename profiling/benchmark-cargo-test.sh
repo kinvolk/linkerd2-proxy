@@ -52,7 +52,7 @@ single_benchmark_run () {
     for r in 4000 8000 16000; do
       S=0
       for i in 1 2 3 4 5; do
-        wrk -d 10s -c 4 -t 4 -L -s wrk-report.lua -R $r -H 'Host: transparency.test.svc.cluster.local' "http://127.0.0.1:$PROXY_PORT/" | tee "$NAME$i-$r-rps.$ID.txt"
+        wrk -d 10s -c 4 -t 4 -L -s wrk-report.lua -R $r -H 'Host: transparency.test.svc.cluster.local' "http://localhost:$PROXY_PORT/" | tee "$NAME$i-$r-rps.$ID.txt"
         T=$(tac "$NAME$i-$r-rps.$ID.txt" | grep -m 1 0.999 | cut -d':' -f2 | awk '{print $1}')
         S=$(python -c "print(max($S, $T))")
       done
@@ -60,7 +60,7 @@ single_benchmark_run () {
     done
   else
     for r in 4000 8000; do
-      strest-grpc client --interval 10s --totalTargetRps $r --streams 4 --connections 4 --iterations 5 --address "127.0.0.1:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
+      strest-grpc client --interval 10s --totalTargetRps $r --streams 4 --connections 4 --iterations 5 --address "localhost:$PROXY_PORT" --clientTimeout 1s | tee "$NAME-$r-rps.$ID.txt"
       T=$(grep -m 1 p999 "$NAME-$r-rps.$ID.txt" | cut -d':' -f2)
       echo "gRPC $DIRECTION, $r, $BRANCH_NAME, $T, 0" >> "summary.$BRANCH_NAME.txt"
     done
@@ -77,7 +77,7 @@ MODE=TCP DIRECTION=outbound NAME=tcpoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOU
 MODE=TCP DIRECTION=inbound NAME=tcpinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND single_benchmark_run
 MODE=HTTP DIRECTION=outbound NAME=http1outbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND single_benchmark_run
 MODE=HTTP DIRECTION=inbound NAME=http1inbound_bench PROXY_PORT=$PROXY_PORT_INBOUND single_benchmark_run
-# outbount gRPC is not working
+MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND single_benchmark_run
 MODE=gRPC DIRECTION=inbound NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND single_benchmark_run
 echo "Benchmark results (display with 'head -vn-0 *$ID.txt | less'):"
 ls *$ID*.txt
