@@ -21,6 +21,30 @@ Another option is to quickly compare in textual form:
 $ git diff --no-index --word-diff summary.mybranch.2019Jun19_15h13m12s.txt summary.master.2019Jun19_15h34m26s.txt
 ```
 
+## Customize Parameters
+
+The benchmark script takes the following environment variables to determine the test parameters.
+When not provided they default to the values as listed here.
+
+`ITERATIONS="5"`: The number of times a single HTTP/gRPC benchmark run is repeated to observe the maximal tail latency.
+
+`DURATION="10s"`: Execution time for a single HTTP/gRPC benchmark run.
+
+`CONNECTIONS="4"`: Number of concurrent TCP connections for HTTP/gRPC.
+
+`GRPC_STREAMS="4"`: Number of HTTP/2 streams in a connection.
+
+`HTTP_RPS="4000 8000 16000"`: Different target HTTP req/s numbers as space-separated list. It may not be achieved if too high.
+Please see the actual req/s in the log output.
+
+`GRPC_RPS="4000 8000"`: As above but for gRPC.
+
+Dummy values to illustrate usage for a quick test run:
+
+```
+$ ITERATIONS=2 DURATION=2s CONNECTIONS=2 GRPC_STREAMS=2 HTTP_RPS="100 1000" GRPC_RPS="100 1000" ./benchmark-cargo-test.sh
+```
+
 # Profiling
 
 Profiling needs to have a build with debug symbols but optimizations.
