@@ -18,6 +18,7 @@ g.groupby(level=indices)
 
 try:
   only_gbits = g[[" branch", " GBit/s"]][ g[" GBit/s"] > 0 ]
+  only_gbits[[" branch"]] = only_gbits[[" branch"]].applymap(lambda x: ' '.join(x.split(' ')[:3]) ) # strip HTTP/gRPC info
   rearrange_gbits = only_gbits.pivot_table(index = ["Test"], columns = " branch", values = " GBit/s")
   rearrange_gbits.plot(kind="bar", title="Throughput (GBit/s)", figsize=(10, 8))
   plt.xticks(rotation = 0)
