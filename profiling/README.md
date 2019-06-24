@@ -40,6 +40,12 @@ $ git diff --no-index --word-diff summary.mybranch.2019Jun19_15h13m12s.txt summa
 The benchmark script takes the following environment variables to determine the test parameters.
 When not provided they default to the values as listed here.
 
+`TCP="1"`: Enable/disable TCP benchmark.
+
+`HTTP="1"`: Enable/disable HTTP benchmark.
+
+`GRPC="1"`: Enable/disable gRPC benchmark.
+
 `ITERATIONS="1"`: The number of times a single HTTP/gRPC benchmark run is repeated to observe the maximal tail latency.
 
 `DURATION="10s"`: Execution time for a single HTTP/gRPC benchmark run.

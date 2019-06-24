@@ -16,20 +16,26 @@ indices = ["Test", " target req/s", " req len"]
 g = pd.concat([pd.read_csv(args.input1, index_col=indices), pd.read_csv(args.input2, index_col=indices)])
 g.groupby(level=indices)
 
-only_gbits = g[[" branch", " GBit/s"]][ g[" GBit/s"] > 0 ]
-rearrange_gbits = only_gbits.pivot_table(index = ["Test"], columns = " branch", values = " GBit/s")
-rearrange_gbits.plot(kind="bar", title="Throughput (GBit/s)", figsize=(10, 8))
-plt.xticks(rotation = 0)
-outfile_gbits = args.outputprefix + "gbits.png"
-print("Save graph to", outfile_gbits)
-plt.savefig(outfile_gbits, bbox_inches="tight")
+try:
+  only_gbits = g[[" branch", " GBit/s"]][ g[" GBit/s"] > 0 ]
+  rearrange_gbits = only_gbits.pivot_table(index = ["Test"], columns = " branch", values = " GBit/s")
+  rearrange_gbits.plot(kind="bar", title="Throughput (GBit/s)", figsize=(10, 8))
+  plt.xticks(rotation = 0)
+  outfile_gbits = args.outputprefix + "gbits.png"
+  print("Save graph to", outfile_gbits)
+  plt.savefig(outfile_gbits, bbox_inches="tight")
+  print("Plotted TCP graph sucessfully")
+except Exception as e:
+  print("Error:", e)
 
-only_latency = g[[" branch", " p999 latency (ms)"]][ g[" p999 latency (ms)"] > 0 ]
-rearrange_latency = only_latency.pivot_table(index=indices, columns=" branch", values=" p999 latency (ms)")
-rearrange_latency.plot(kind="bar", logy=args.logy, title="p999 Latency (ms)", figsize=(28, 3), fontsize=7) # increase figsize x value if labels overlap
-plt.xticks(rotation = 0)
-outfile_latency = args.outputprefix + "latency.png"
-print("Save graph to", outfile_latency)
-plt.savefig(outfile_latency, bbox_inches="tight")
-
-print("Plotted sucessfully")
+try:
+  only_latency = g[[" branch", " p999 latency (ms)"]][ g[" p999 latency (ms)"] > 0 ]
+  rearrange_latency = only_latency.pivot_table(index=indices, columns=" branch", values=" p999 latency (ms)")
+  rearrange_latency.plot(kind="bar", logy=args.logy, title="p999 Latency (ms)", figsize=(28, 3), fontsize=7) # increase figsize x value if labels overlap
+  plt.xticks(rotation = 0)
+  outfile_latency = args.outputprefix + "latency.png"
+  print("Save graph to", outfile_latency)
+  plt.savefig(outfile_latency, bbox_inches="tight")
+  print("Plotted HTTP/gRPC graph sucessfully")
+except Exception as e:
+  print("Error:", e)
