@@ -8,7 +8,7 @@ CONNECTIONS="${CONNECTIONS-4}"
 GRPC_STREAMS="${GRPC_STREAMS-4}"
 HTTP_RPS="${HTTP_RPS-4000 8000 16000}"
 GRPC_RPS="${GRPC_RPS-4000 8000}"
-REQ_BODY_LEN="${BODY_LEN-10 200}"
+REQ_BODY_LEN="${REQ_BODY_LEN-10 200}"
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 SERVER_PORT=8080
@@ -52,8 +52,11 @@ single_benchmark_run () {
     sleep 1
   done
   if [ "$MODE" = "TCP" ]; then
-    iperf -t 6 -p "$PROXY_PORT" -c localhost | tee "$NAME.$ID.txt"
+    ( iperf -t 6 -p "$PROXY_PORT" -c localhost || ( echo "iperf client failed"; true ) ) | tee "$NAME.$ID.txt"
     T=$(grep "/sec" "$NAME.$ID.txt" | cut -d' ' -f12)
+    if [ -z "$T" ]; then
+      T="0"
+    fi
     echo "TCP $DIRECTION, 0, 0, $RUN_NAME, 0, $T" >> "summary.$RUN_NAME.txt"
   elif [ "$MODE" = "HTTP" ]; then
    for l in $REQ_BODY_LEN; do
