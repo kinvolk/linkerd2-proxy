@@ -2,13 +2,13 @@
 set -o errexit
 set -o nounset
 set -o pipefail
-ITERATIONS="${ITERATIONS-2}"
+ITERATIONS="${ITERATIONS-1}"
 DURATION="${DURATION-10s}"
 CONNECTIONS="${CONNECTIONS-4}"
 GRPC_STREAMS="${GRPC_STREAMS-4}"
-HTTP_RPS="${HTTP_RPS-4000 8000 16000}"
-GRPC_RPS="${GRPC_RPS-4000 8000}"
-REQ_BODY_LEN="${BODY_LEN-100}"
+HTTP_RPS="${HTTP_RPS-4000 7000}"
+GRPC_RPS="${GRPC_RPS-4000 6000}"
+REQ_BODY_LEN="${BODY_LEN-10 200}"
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 PROFDIR=$(dirname "$0")
@@ -18,14 +18,14 @@ BRANCH_NAME=$(git symbolic-ref -q HEAD)
 BRANCH_NAME=${BRANCH_NAME##refs/heads/}
 BRANCH_NAME=${BRANCH_NAME:-HEAD}
 BRANCH_NAME=$(echo $BRANCH_NAME | sed -e 's/\//-/g')
-RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS Streams: $GRPC_STREAMS Req body len: $REQ_BODY_LEN"
+RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS Streams: $GRPC_STREAMS"
 
 cd "$PROFDIR"
 which fortio || ( echo "fortio not found: Get the binary from  and have it available from your PATH" ; exit 1 )
 
 trap '{ killall iperf fortio >& /dev/null; }' EXIT
 
-echo "Test, target req/s, branch, p999 latency (ms), GBit/s" > "summary.$RUN_NAME.txt"
+echo "Test, target req/s, req len, branch, p999 latency (ms), GBit/s" > "summary.$RUN_NAME.txt"
 
 single_benchmark_run () {
   (
@@ -48,7 +48,7 @@ single_benchmark_run () {
   if [ "$MODE" = "TCP" ]; then
     iperf -t 6 -p "$PROXY_PORT" -c 127.0.0.1 | tee "$NAME.$ID.txt"
     T=$(grep "/sec" "$NAME.$ID.txt" | cut -d' ' -f12)
-    echo "TCP $DIRECTION, 0, $RUN_NAME, 0, $T" >> "summary.$RUN_NAME.txt"
+    echo "TCP $DIRECTION, 0, 0, $RUN_NAME, 0, $T" >> "summary.$RUN_NAME.txt"
   else
     RPS="$HTTP_RPS"
     XARG=""
@@ -56,10 +56,11 @@ single_benchmark_run () {
       RPS="$GRPC_RPS"
       XARG="-grpc -s $GRPC_STREAMS"
     fi
-    for r in $RPS; do
+    for l in $REQ_BODY_LEN; do
+     for r in $RPS; do
       S=0
       for i in $(seq $ITERATIONS); do
-        fortio load $XARG -resolve 127.0.0.1 -c="$CONNECTIONS" -qps="$r" -t="$DURATION" -payload-size="$REQ_BODY_LEN" -labels="$RUN_NAME" -json="$NAME-$r-rps.$ID.json" -keepalive=false -H 'Host: transparency.test.svc.cluster.local' "localhost:$PROXY_PORT"
+        fortio load $XARG -resolve 127.0.0.1 -c="$CONNECTIONS" -qps="$r" -t="$DURATION" -payload-size="$l" -labels="$RUN_NAME" -json="$NAME-$r-rps.$ID.json" -keepalive=false -H 'Host: transparency.test.svc.cluster.local' "localhost:$PROXY_PORT"
         T=$(tac "$NAME-$r-rps.$ID.json" | grep -m 1 Value | cut  -d':' -f2)
         if [ -z "$T" ]; then
           echo "No last percentile value found"
@@ -67,7 +68,8 @@ single_benchmark_run () {
         fi
         S=$(python -c "print(max($S, $T*1000.0))")
       done
-      echo "$MODE $DIRECTION, $r, $RUN_NAME, $S, 0" >> "summary.$RUN_NAME.txt"
+      echo "$MODE $DIRECTION, $r, $l, $RUN_NAME, $S, 0" >> "summary.$RUN_NAME.txt"
+     done
     done
   fi
   # kill server
@@ -84,7 +86,7 @@ MODE=HTTP DIRECTION=outbound NAME=http1outbound_bench PROXY_PORT=$PROXY_PORT_OUT
 MODE=HTTP DIRECTION=inbound NAME=http1inbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
 MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8079 single_benchmark_run
 MODE=gRPC DIRECTION=inbound NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8079 single_benchmark_run
-echo "Benchmark results (display with 'head -vn-0 *$ID.txt *$ID.json | less'):"
+echo "Benchmark results (display with 'head -vn-0 *$ID.txt *$ID.json | less' or compare them with ./plot.py):"
 ls *$ID*.txt
 echo SUMMARY:
 cat "summary.$RUN_NAME.txt"
