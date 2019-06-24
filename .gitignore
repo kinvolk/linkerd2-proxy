@@ -3,6 +3,7 @@ profiling/flamegraph*
 profiling/*folded
 profiling/*txt
 profiling/*dat
+profiling/*json
 profiling/memory-profiler-*
 profiling/libmemory_profiler.so
 profiling/perf.data
