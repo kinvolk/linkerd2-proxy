@@ -81,8 +81,8 @@ Trace function call stacks (2000 per second) and generate flamegraphs:
 
 ```
 $ ./profiling-build.sh # if needed
-$ ./profiling-run.sh
-$ firefox/chrome *svg  # view flamegraph
+$ ./profiling-perf-fortio.sh
+$ firefox/chrome *svg  # view flamegraphs
 ```
 
 
@@ -92,15 +92,6 @@ Trace heap memory allocations and generate flamegraphs:
 
 ```
 $ ./profiling-build.sh # if needed
-$ ./profiling-heap.sh
+$ ./profiling-heap-fortio.sh
 $ heaptrack -a ….heaptrack.dat  # view report
-```
-
-## Log memory usage
-
-Report program memory and actively used part of it:
-
-```
-$ ./profiling-build.sh # if needed
-$ ./profiling-wss.sh
 ```
