@@ -6,12 +6,12 @@ set -o pipefail
 # Configuration env vars and their defaults:
 HIDE="${HIDE-1}"
 ITERATIONS="${ITERATIONS-1}"
-DURATION="${DURATION-10s}"
+DURATION="${DURATION-6s}"
 CONNECTIONS="${CONNECTIONS-4}"
 GRPC_STREAMS="${GRPC_STREAMS-4}"
-HTTP_RPS="${HTTP_RPS-4000 7000}"
-GRPC_RPS="${GRPC_RPS-4000 6000}"
-REQ_BODY_LEN="${REQ_BODY_LEN-10 200}"
+HTTP_RPS="${HTTP_RPS-4000}"
+GRPC_RPS="${GRPC_RPS-4000}"
+REQ_BODY_LEN="${REQ_BODY_LEN-200}"
 TCP="${TCP-1}"
 HTTP="${HTTP-1}"
 GRPC="${GRPC-1}"
@@ -20,6 +20,7 @@ PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 PROFDIR=$(dirname "$0")
 ID=$(date +"%Y%h%d_%Hh%Mm%Ss")
+LINKERD_TEST_BIN="../target/release/profiling-opt-and-dbg-symbols"
 
 BRANCH_NAME=$(git symbolic-ref -q HEAD)
 BRANCH_NAME=${BRANCH_NAME##refs/heads/}
@@ -29,8 +30,17 @@ RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS 
 
 echo "File marker $RUN_NAME"
 
+typeset -i PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid)
+if [ "$PARANOID" -ne "-1" ]; then
+  echo "To capture kernel events please run: echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid"
+  exit 1
+fi
+
 cd "$PROFDIR"
 which fortio &> /dev/null || ( echo "fortio not found: Get the binary from https://github.com/fortio/fortio and have it available from your PATH" ; exit 1 )
+which inferno-collapse-perf inferno-flamegraph || cargo install inferno
+which inferno-collapse-perf inferno-flamegraph || ( echo "Please add ~/.cargo/bin to your PATH" ; exit 1 )
+ls $LINKERD_TEST_BIN || ( echo "$LINKERD_TEST_BIN not found: Please run ./profiling-build.sh" ; exit 1 )
 
 # Cleanup background processes when script is canceled
 trap '{ killall iperf fortio >& /dev/null; }' EXIT
@@ -107,8 +117,11 @@ single_benchmark_run () {
     sleep 1
   done
   ) &
+  rm ./perf.data* &> "$LOG" || true
   # run proxy in foreground
-  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" cargo test --release profiling_setup -- --exact profiling_setup --nocapture &> "$LOG" || echo "proxy failed"
+  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" perf record -F 2000 --call-graph dwarf $LINKERD_TEST_BIN --exact profiling_setup --nocapture &> "$LOG" || echo "proxy failed"
+  perf script | inferno-collapse-perf > "out_$NAME.$ID.folded"  # separate step to be able to rerun flamegraph with another width if needed
+  inferno-flamegraph --width 4000 "out_$NAME.$ID.folded" > "flamegraph_$NAME.$ID.svg"
 }
 
 if [ "$HIDE" -eq "1" ]; then
@@ -118,19 +131,20 @@ else
 fi
 
 if [ "$TCP" -eq "1" ]; then
-  MODE=TCP DIRECTION=outbound NAME=tcpoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
-  MODE=TCP DIRECTION=inbound NAME=tcpinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=TCP DIRECTION=outbound NAME=tcpoutbound_perf PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=TCP DIRECTION=inbound NAME=tcpinbound_perf PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
 fi
 if [ "$HTTP" -eq "1" ]; then
-  MODE=HTTP DIRECTION=outbound NAME=http1outbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
-  MODE=HTTP DIRECTION=inbound NAME=http1inbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=HTTP DIRECTION=outbound NAME=http1outbound_perf PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=HTTP DIRECTION=inbound NAME=http1inbound_perf PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
 fi
 if [ "$GRPC" -eq "1" ]; then
-  MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8079 single_benchmark_run
-  MODE=gRPC DIRECTION=inbound NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8079 single_benchmark_run
+  MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_perf PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8079 single_benchmark_run
+  MODE=gRPC DIRECTION=inbound NAME=grpcinbound_perf PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8079 single_benchmark_run
 fi
-echo "Benchmark results (display with 'head -vn-0 *$ID.txt *$ID.json | less' or compare them with ./plot.py):"
+echo "Log files (display with 'head -vn-0 *$ID.txt *$ID.json | less'):"
 ls ./*$ID*.txt
 echo SUMMARY:
 cat "summary.$RUN_NAME.txt"
-echo "Run 'fortio report' and open http://localhost:8080/ to display the HTTP/gRPC graphs"
+echo "Finished, inspect flamegraphs in browser:"
+ls *$ID*.svg

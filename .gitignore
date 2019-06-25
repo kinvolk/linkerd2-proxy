@@ -4,6 +4,7 @@ profiling/*folded
 profiling/*txt
 profiling/*dat
 profiling/*json
+profiling/*png
 profiling/memory-profiler-*
 profiling/libmemory_profiler.so
 profiling/perf.data

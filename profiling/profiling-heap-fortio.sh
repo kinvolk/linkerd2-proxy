@@ -6,12 +6,12 @@ set -o pipefail
 # Configuration env vars and their defaults:
 HIDE="${HIDE-1}"
 ITERATIONS="${ITERATIONS-1}"
-DURATION="${DURATION-10s}"
+DURATION="${DURATION-6s}"
 CONNECTIONS="${CONNECTIONS-4}"
 GRPC_STREAMS="${GRPC_STREAMS-4}"
-HTTP_RPS="${HTTP_RPS-4000 7000}"
-GRPC_RPS="${GRPC_RPS-4000 6000}"
-REQ_BODY_LEN="${REQ_BODY_LEN-10 200}"
+HTTP_RPS="${HTTP_RPS-4000}"
+GRPC_RPS="${GRPC_RPS-4000}"
+REQ_BODY_LEN="${REQ_BODY_LEN-200}"
 TCP="${TCP-1}"
 HTTP="${HTTP-1}"
 GRPC="${GRPC-1}"
@@ -20,6 +20,7 @@ PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 PROFDIR=$(dirname "$0")
 ID=$(date +"%Y%h%d_%Hh%Mm%Ss")
+LINKERD_TEST_BIN="../target/release/profiling-opt-and-dbg-symbols"
 
 BRANCH_NAME=$(git symbolic-ref -q HEAD)
 BRANCH_NAME=${BRANCH_NAME##refs/heads/}
@@ -31,6 +32,8 @@ echo "File marker $RUN_NAME"
 
 cd "$PROFDIR"
 which fortio &> /dev/null || ( echo "fortio not found: Get the binary from https://github.com/fortio/fortio and have it available from your PATH" ; exit 1 )
+ls libmemory_profiler.so memory-profiler-cli || ( curl -L -O https://github.com/nokia/memory-profiler/releases/download/0.3.0/memory-profiler-x86_64-unknown-linux-gnu.tgz ; tar xf memory-profiler-x86_64-unknown-linux-gnu.tgz ; rm memory-profiler-x86_64-unknown-linux-gnu.tgz )
+ls $LINKERD_TEST_BIN || ( echo "$LINKERD_TEST_BIN not found: Please run ./profiling-build.sh" ; exit 1 )
 
 # Cleanup background processes when script is canceled
 trap '{ killall iperf fortio >& /dev/null; }' EXIT
@@ -107,8 +110,11 @@ single_benchmark_run () {
     sleep 1
   done
   ) &
+  rm memory-profiling_*.dat &> "$LOG" || true
   # run proxy in foreground
-  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" cargo test --release profiling_setup -- --exact profiling_setup --nocapture &> "$LOG" || echo "proxy failed"
+  PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" LD_PRELOAD=./libmemory_profiler.so $LINKERD_TEST_BIN --exact profiling_setup --nocapture &> "$LOG" || echo "proxy failed"
+  mv memory-profiling_*.dat "$NAME.$ID.heap.dat"
+  ./memory-profiler-cli export-heaptrack "$NAME.$ID.heap.dat" --output "$NAME.$ID.heaptrack.dat"
 }
 
 if [ "$HIDE" -eq "1" ]; then
@@ -118,19 +124,21 @@ else
 fi
 
 if [ "$TCP" -eq "1" ]; then
-  MODE=TCP DIRECTION=outbound NAME=tcpoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
-  MODE=TCP DIRECTION=inbound NAME=tcpinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=TCP DIRECTION=outbound NAME=tcpoutbound_heap PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=TCP DIRECTION=inbound NAME=tcpinbound_heap PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
 fi
 if [ "$HTTP" -eq "1" ]; then
-  MODE=HTTP DIRECTION=outbound NAME=http1outbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
-  MODE=HTTP DIRECTION=inbound NAME=http1inbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=HTTP DIRECTION=outbound NAME=http1outbound_heap PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8080 single_benchmark_run
+  MODE=HTTP DIRECTION=inbound NAME=http1inbound_heap PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8080 single_benchmark_run
 fi
 if [ "$GRPC" -eq "1" ]; then
-  MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_bench PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8079 single_benchmark_run
-  MODE=gRPC DIRECTION=inbound NAME=grpcinbound_bench PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8079 single_benchmark_run
+  MODE=gRPC DIRECTION=outbound NAME=grpcoutbound_heap PROXY_PORT=$PROXY_PORT_OUTBOUND SERVER_PORT=8079 single_benchmark_run
+  MODE=gRPC DIRECTION=inbound NAME=grpcinbound_heap PROXY_PORT=$PROXY_PORT_INBOUND SERVER_PORT=8079 single_benchmark_run
 fi
-echo "Benchmark results (display with 'head -vn-0 *$ID.txt *$ID.json | less' or compare them with ./plot.py):"
+echo "Log files (display with 'head -vn-0 *$ID.txt *$ID.json | less'):"
 ls ./*$ID*.txt
 echo SUMMARY:
 cat "summary.$RUN_NAME.txt"
-echo "Run 'fortio report' and open http://localhost:8080/ to display the HTTP/gRPC graphs"
+echo "a) Run './memory-profiler-cli server CHANGEME_heap.$ID.heap.dat' and open http://localhost:8080/ to browse the memory graphs or,"
+echo "b) run 'heaptrack -a CHANGEME_heap.$ID.heaptrack.dat' to open the heaptrack files for a detailed view."
+echo "(Replace CHANGEME with http1inbound, http1outbound, grpcinbound, grpcoutbound, tcpinbound, tcpoutbound.)"
