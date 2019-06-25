@@ -2,6 +2,8 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+
+# Configuration env vars and their defaults:
 HIDE="${HIDE-1}"
 ITERATIONS="${ITERATIONS-1}"
 DURATION="${DURATION-10s}"
@@ -13,6 +15,7 @@ REQ_BODY_LEN="${REQ_BODY_LEN-10 200}"
 TCP="${TCP-1}"
 HTTP="${HTTP-1}"
 GRPC="${GRPC-1}"
+
 PROXY_PORT_OUTBOUND=4140
 PROXY_PORT_INBOUND=4143
 PROFDIR=$(dirname "$0")
@@ -27,14 +30,18 @@ RUN_NAME="$BRANCH_NAME $ID Iter: $ITERATIONS Dur: $DURATION Conns: $CONNECTIONS 
 echo "File marker $RUN_NAME"
 
 cd "$PROFDIR"
-which fortio &> /dev/null || ( echo "fortio not found: Get the binary from  and have it available from your PATH" ; exit 1 )
+which fortio &> /dev/null || ( echo "fortio not found: Get the binary from https://github.com/fortio/fortio and have it available from your PATH" ; exit 1 )
 
+# Cleanup background processes when script is canceled
 trap '{ killall iperf fortio >& /dev/null; }' EXIT
 
+# Summary table header
 echo "Test, target req/s, req len, branch, p999 latency (ms), GBit/s" > "summary.$RUN_NAME.txt"
 
 single_benchmark_run () {
+  # run benchmark utilities in background, only proxy runs in foreground
   (
+  # spawn test server in background
   SERVER="fortio server -ui-path ''"
   if [ "$MODE" = "TCP" ]; then
     SERVER="iperf -s -p $SERVER_PORT"
@@ -51,6 +58,7 @@ single_benchmark_run () {
   do
     sleep 1
   done
+  # run client
   if [ "$MODE" = "TCP" ]; then
     echo "TCP $DIRECTION"
     ( iperf -t 6 -p "$PROXY_PORT" -c 127.0.0.1 || ( echo "iperf client failed" > /dev/stderr; true ) ) | tee "$NAME.$ID.txt" &> "$LOG"
@@ -67,20 +75,21 @@ single_benchmark_run () {
       XARG="-grpc -s $GRPC_STREAMS"
     fi
     for l in $REQ_BODY_LEN; do
-     for r in $RPS; do
-      S=0
-      for i in $(seq $ITERATIONS); do
-        echo "$MODE $DIRECTION Iteration: $i RPS: $r REQ_BODY_LEN: $l"
-        fortio load $XARG -resolve 127.0.0.1 -c="$CONNECTIONS" -qps="$r" -t="$DURATION" -payload-size="$l" -labels="$RUN_NAME" -json="$NAME-$r-rps.$ID.json" -keepalive=false -H 'Host: transparency.test.svc.cluster.local' "localhost:$PROXY_PORT" &> "$LOG"
-        T=$(tac "$NAME-$r-rps.$ID.json" | grep -m 1 Value | cut  -d':' -f2)
-        if [ -z "$T" ]; then
-          echo "No last percentile value found"
-          exit 1
-        fi
-        S=$(python -c "print(max($S, $T*1000.0))")
+      for r in $RPS; do
+        # Store maximum p999 latency of multiple iterations here
+        S=0
+        for i in $(seq $ITERATIONS); do
+          echo "$MODE $DIRECTION Iteration: $i RPS: $r REQ_BODY_LEN: $l"
+          fortio load $XARG -resolve 127.0.0.1 -c="$CONNECTIONS" -qps="$r" -t="$DURATION" -payload-size="$l" -labels="$RUN_NAME" -json="$NAME-$r-rps.$ID.json" -keepalive=false -H 'Host: transparency.test.svc.cluster.local' "localhost:$PROXY_PORT" &> "$LOG"
+          T=$(tac "$NAME-$r-rps.$ID.json" | grep -m 1 Value | cut  -d':' -f2)
+          if [ -z "$T" ]; then
+            echo "No last percentile value found"
+            exit 1
+          fi
+          S=$(python -c "print(max($S, $T*1000.0))")
+        done
+        echo "$MODE $DIRECTION, $r, $l, $RUN_NAME, $S, 0" >> "summary.$RUN_NAME.txt"
       done
-      echo "$MODE $DIRECTION, $r, $l, $RUN_NAME, $S, 0" >> "summary.$RUN_NAME.txt"
-     done
     done
   fi
   # kill server
@@ -98,6 +107,7 @@ single_benchmark_run () {
     sleep 1
   done
   ) &
+  # run proxy in foreground
   PROFILING_SUPPORT_SERVER="127.0.0.1:$SERVER_PORT" cargo test --release profiling_setup -- --exact profiling_setup --nocapture &> "$LOG" || echo "proxy failed"
 }
 
